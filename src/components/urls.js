@@ -1,3 +1,3 @@
-const BASE_URL = "http://localhost:3001";
+const BASE_URL = "https://gt-server-zeta.vercel.app";
 
 export default BASE_URL;
