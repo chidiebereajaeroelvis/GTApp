@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family:
+      "Inter",
+      system-ui,
+      -apple-system,
+      sans-serif;
+  }
+}
+
+@layer components {
+  .errorMessage {
+    font-size: 1.1em;
+    color: red;
+    margin: 0.6em 0;
+    display: block;
+    text-align: center;
+  }
+
+  .btn {
+    background: #40196d;
+  }
+}
+
+@layer base {
+  ul {
+    list-style: none;
+  }
+}
